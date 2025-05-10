@@ -154,16 +154,11 @@ class Agent():
     })
     }
     ---
+    REMEMBER: The final output response should be a valid JSON object format and well explained in detail 
+    Output strictly in JSON format as shown above — no commentary or explanations outside the JSON object.
+    ---
 
-    REMEMBER: The final output response should be a valid JSON object format and well explained in detail
-
-
-    REMEMBER: The final output response should be a valid JSON object format and well explained in detail
-Output strictly in JSON format as shown below — no commentary or explanation
-
-
-
-
+    
     """
         """The system prompt for the Helix recruiting agent with candidate tools."""
         return SystemMessage(content=(prompt))
