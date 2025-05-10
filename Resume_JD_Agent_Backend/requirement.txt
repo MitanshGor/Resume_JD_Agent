@@ -1,0 +1,10 @@
+flask
+flask-cors
+dotenv
+langchain
+langchain_core
+langgraph
+langchain_mistralai
+langchain_ollama  
+psycopg2-binary
+langgraph
