@@ -148,7 +148,6 @@ resume-jd-agent/
 - 📊 Graphical scoring dashboard
 - ☁️ Full cloud-native deployment (AWS/GCP)
 
-
 ---
 
 > *“Helping every resume find the right job — powered by AI.”*
