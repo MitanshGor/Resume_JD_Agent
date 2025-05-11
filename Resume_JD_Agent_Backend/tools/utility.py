@@ -1,55 +1,71 @@
-
 from tools.insert import insert
 from tools.retrival import retrive
 from tools.delete import delete
-import os 
 from tools.discord import DiscordMessageTool
 from dotenv import load_dotenv
+from langchain.tools import Tool
+import os
 
 load_dotenv()
+
 class tools:
-
-
-    def database_tool(self):
-        # This is for the connection string for the database -> The only connection string that is needed to
-        # Connect to CoackRaochDB
+    def __init__(self):
         self.db_connection = os.getenv("DATABASE_URL")
+        self.discord_webhook_url = os.getenv("DISCORD_WEBHOOK_URL")
 
-        # Creating the instances of both the retrival and insert tools
+        # Initialize database handlers
         self.insert_tool = insert(self.db_connection)
         self.retrival_tool = retrive(self.db_connection)
         self.delete_tool = delete(self.db_connection)
-        
 
-        # Building the services that will be used to invoke the tools itself
-        self.insert = self.insert_tool.insert_canidate
-        self.retrive = self.retrival_tool.retrive
-        self.delete = self.delete_tool.delete
+        # Initialize Discord tool
+        self.discord_tool = DiscordMessageTool(webhook_url=self.discord_webhook_url)
 
-        return [self.insert, self.retrive, self.delete, self.discord_tool]
+        # Compose the final tools list
+        self.database_tools = self._get_database_tools()
+        self.discord_tools = self._get_discord_tools()
+        self.tools_list = self.database_tools + self.discord_tools
 
-    def discord_tool(self):
-        self.discord_webhook_url = os.getenv("DISCORD_WEBHOOK_URL")
+    def _get_database_tools(self):
+        """LangChain-compatible tools for database operations"""
+        return [
+            Tool(
+                name="insert_candidate",
+                func=self.insert_tool.insert_canidate,
+                description="Insert a new candidate into the database. Input should be a JSON with candidate details."
+            ),
+            Tool(
+                name="retrive_candidate",
+                func=self.retrival_tool.retrive,
+                description="Retrieve a candidate from the database. Input should be a JSON with candidate ID."
+            ),
+            Tool(
+                name="delete_candidate",
+                func=self.delete_tool.delete,
+                description="Delete a candidate from the database. Input should be a JSON with candidate ID."
+            ),
+        ]
 
-        # Creating the instances of both the retrival and insert tool
-        self.discord_tool = DiscordMessageTool()
+    def _get_discord_tools(self):
+        """LangChain-compatible tools for Discord notifications"""
+        return [
+            Tool(
+                name="discord_user_create",
+                func=self.discord_tool.send_discord_notification,
+                description="Send a message to Discord when a user is created. Input should be a JSON with keys: first_name, last_name, resume."
+            ),
+            Tool(
+                name="discord_user_update",
+                func=self.discord_tool.send_discord_notification_Updated,
+                description="Send a message to Discord when a user is updated. Input should be a JSON with keys: first_name, last_name, resume."
+            ),
+            Tool(
+                name="discord_user_delete",
+                func=self.discord_tool.send_discord_notification_delete,
+                description="Send a message to Discord when a user is deleted. Input should be a JSON with keys: first_name, last_name."
+            ),
+        ]
 
-        # Building the services that will be used to invoke the tools itself
-        self.discord_notification = self.discord_tool.send_discord_notification
-
-        return [self.discord_notification]
-    def __init__(self): 
-        database_tools = self.database_tool()
-        discord_tools = self.discord_tool()
-        self.tools_list = database_tools + discord_tools
-
-    def toolkit(self): 
+    def toolkit(self):
+        """Return the full list of tools for the agent"""
         return self.tools_list
-    
-# if __name__ == "__main__":
-#     tools = tools()
-#     li = tools.toolkit()
-#     testing = li[1] 
-#     print(testing())
-#     testing = li[2]("1067972559791915009")
-#     print(testing)

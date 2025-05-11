@@ -15,7 +15,7 @@ export interface Message {
 interface AnalysisResult {
   Score: Record<string, number>;
   improvement_tips: string[];
-  strengths: string[];
+  strenghts: string[];
   overall_score: number;
 }
 
@@ -97,25 +97,19 @@ export function useChat() {
                "message": content })
         });
         
+
+        console.log('API Response:', response);
         if (!response.ok) {
           throw new Error('Failed to get analysis from server');
         }
 
         const data = await response.json();
-        // console.log('Typeof API Response:', typeof data);
-        // console.log('API Response:', data);
+        console.log('Typeof API Response:', typeof data);
+        console.log('API Response:', data);
         // string to json
-       let temp = data.slice(7, -3);
-       temp = temp.trim();
-        console.log('API Response:', temp);
-       temp  = JSON.parse(temp);
-        console.log('Typeof API Response 123 :', typeof temp);
-        let  formattedResponse = '';
-        if(typeof temp === 'string') {
-          formattedResponse = data
-        } else {
-          formattedResponse = formatAnalysisResponse(temp);
-        }
+      //  let temp = data.slice(7, -3);
+       console.log('temp:', data);
+       const formattedResponse = formatAnalysisResponse(data);
 
         console.log('API Response 2:', data);
         // console.log('Formatted Response:', formattedResponse);
@@ -190,7 +184,7 @@ export function useChat() {
         "Include certifications mentioned in the job requirements",
         "Customize your skills section to better match the job needs"
       ],
-      strengths: [
+      strenghts: [
         "Strong educational background that aligns with the role",
         "Relevant experience in the industry",
         "Good demonstration of technical skills",
@@ -228,12 +222,12 @@ const formatAnalysisResponse = (result: AnalysisResult | StringKeyValue): string
 
   // Add strengths
   response += `\n### Your Strengths\n`;
-  if (Array.isArray(result.strengths)) {
-    result.strengths.forEach(strength => {
+  if (Array.isArray(result.strenghts)) {
+    result.strenghts.forEach(strength => {
       response += `- ${strength}\n`;
     });
   } else {
-    response += `- ${result.strengths}\n`;
+    response += `- ${result.strenghts}\n`;
   }
 
   // Add improvement tips

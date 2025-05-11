@@ -18,12 +18,12 @@ from utils.utils import AgentState
 
 class Agent(): 
     def __init__(self):
+        # self.mistral_model = ChatOllama(model="llama3", temperature=0)
         self.mistral_model = ChatMistralAI(model="mistral-large-latest", temperature=0, api_key=os.getenv("MISTRAL_API_KEY"))
-        Tool = tools()
-        self.tools = Tool.toolkit()
+        self.tools = tools().toolkit()
         self.model_with_tool = self.mistral_model.bind_tools(self.tools)
 
-    
+
     def system_prompt(self, resume_and_job_description) -> SystemMessage:
         prompt = f"""
 
@@ -126,6 +126,7 @@ class Agent():
 
     ### EXECUTION RULES:
     - Work as committees, not as individual members  
+    - Use the tools provided for database Update/insert/delete and discord notification.
     - Follow ToT (Tree of Thoughts) to explore and finalize your reasoning  
     - Do not invent information or answer off-topic questions  
     - Only work with the data that’s been provided — no guessing  
@@ -154,9 +155,11 @@ class Agent():
     })
     }
     ---
-    REMEMBER: The final output response should be a valid JSON object format and well explained in detail 
-    Output strictly in JSON format as shown above — no commentary or explanations outside the JSON object.
-    ---
+
+    REMEMBER: The final output response should be a valid JSON object format and well explained in detail. 
+    REMEMBER: The final output response should be a valid JSON object format and well explained in detail
+    Output strictly in JSON format as shown below — no commentary or explanation.
+
 
     
     """
