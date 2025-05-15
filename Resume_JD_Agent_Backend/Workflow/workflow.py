@@ -1,7 +1,7 @@
 import os
 import sys
 from dotenv import load_dotenv
-from langchain_ollama import OllamaEmbeddings
+# from langchain_ollama import OllamaEmbeddings
 from langgraph.graph import StateGraph, END
 from langgraph.checkpoint.memory import MemorySaver
 from langgraph.prebuilt import tools_condition as tc
@@ -9,12 +9,12 @@ from langchain_core.messages import RemoveMessage
 from langchain_core.runnables import RunnableConfig
 from langchain_core.messages import HumanMessage
 from langchain_core.runnables import Runnable
-from langchain.tools.base import ToolException
 from langgraph.prebuilt import ToolNode
+import json
 
 # Set up system path for local imports
 sys.path.append(os.path.abspath(os.path.join(os.getcwd(), '..')))
-from tools.utility import tools
+from tools.utility import Tools
 from SingleAgent.singleAgent import Agent
 from utils.utils import AgentState
 
@@ -30,80 +30,93 @@ class ToolNodeWithTracking(ToolNode):
         return input
 
 
-# ✅ Discord Router to determine which Discord tool to run after a DB tool
-def discord_tool_router(state):
-    last_tool = state.get("last_tool")
-    if last_tool == "insert_candidate":
-        return "discord_user_create"
-    elif last_tool == "update_candidate":
-        return "discord_user_update"
-    elif last_tool == "delete_candidate":
-        return "discord_user_delete"
-    return "__end__"
-
-
 
 class workflow:
     def __init__(self):
         self.memory = MemorySaver()
-        self.workflow = StateGraph(AgentState)
+        self.flow = StateGraph(AgentState)
         self.graph = None
-
-        embeddings = OllamaEmbeddings(model="nomic-embed-text")
-        self.Tools = tools()
-        self.singleAgent = Agent()
-
+        # embeddings = OllamaEmbeddings(model="nomic-embed-text")
+        self.single_agent = Agent()
         # Register tools and enhanced ToolNode
-        self.tools = ToolNodeWithTracking(self.Tools.toolkit())
-
+        self.tools = ToolNodeWithTracking(Tools().toolkit())
         self.workflow_init()
-
         self.clear = self.clear_all_memory
 
     def workflow_init(self):
-        self.workflow.add_node("agent", self.singleAgent.run_agent)
-        self.workflow.add_node("tools_execution", self.tools)
+        self.flow.add_node("agent", self.single_agent.run_agent)
+        tool_map = {
+            tool.name: tool for tool in Tools().toolkit()
+        }        
 
-        discord_tool_map = {
-            tool.name: tool for tool in self.Tools.toolkit()
-            if tool.name.startswith("discord_user_")
-        }
-        self.workflow.add_node("discord_user_create", discord_tool_map["discord_user_create"])
-        self.workflow.add_node("discord_user_update", discord_tool_map["discord_user_update"])
-        self.workflow.add_node("discord_user_delete", discord_tool_map["discord_user_delete"])
 
-        self.workflow.add_node("discord_router", discord_tool_router)
+        def dynamic_tool_executor(state):
+            messages = state.get("messages", [])
+            if not messages:
+                raise ValueError("No messages in state.")
 
-        self.workflow.set_entry_point("agent")
+            ai_message = messages[-1]
+            tool_calls = ai_message.tool_calls
+            new_messages = []
 
-        self.workflow.add_conditional_edges(
+            for tool_call in tool_calls:
+                name = tool_call["name"]
+                args = tool_call["args"]
+                tool_id = tool_call["id"]
+                try:
+                    tool_result = tool_map[name].invoke(args)
+
+                    # Extract a clean string message
+                    content = ""
+                    if isinstance(tool_result, dict):
+                        response_value = tool_result.get("Response", tool_result)
+                        if isinstance(response_value, list):
+                            content = "\n".join(item.get("Response", str(item)) for item in response_value)
+                        else:
+                            content = str(response_value)
+                    else:
+                        content = str(tool_result)
+
+                    # ✅ Add as tool message
+                    new_messages.append({
+                        "role": "tool",
+                        "tool_call_id": tool_id,
+                        "content": content
+                    })
+
+                except Exception as e:
+                    print(f"Error invoking tool '{name}': {e}")
+                    raise
+
+            print('---------------------------------------------------')
+            print('MESSAGE 1  : ',  messages)
+            print('---------------------------------------------------')
+            print('MESSAGE 2 : ', new_messages)
+            print('---------------------------------------------------')
+            
+            return {
+                "messages": messages + new_messages,
+            }
+
+
+
+
+        self.flow.add_node("tools_execution", dynamic_tool_executor)
+        # Entry point
+        self.flow.set_entry_point("agent")
+        self.flow.add_conditional_edges(
             "agent",
             tc,
             {
                 "tools": "tools_execution",
-               "__end__": "__end__",
-            },
-        )
-        self.workflow.add_edge("tools_execution", "discord_router")
-
-        self.workflow.add_conditional_edges(
-            "discord_router",
-            discord_tool_router,
-            {
-                "discord_user_create": "discord_user_create",
-                "discord_user_update": "discord_user_update",
-                "discord_user_delete": "discord_user_delete",
-                "__end__": "__end__",
+                 "end": "__end__"
             },
         )
 
-        # After discord notification, return to agent
-        self.workflow.add_edge("discord_user_create", "agent")
-        self.workflow.add_edge("discord_user_update", "agent")
-        self.workflow.add_edge("discord_user_delete", "agent")
+        self.flow.add_edge("tools_execution", "agent")
 
         # Compile the graph
-        self.graph = self.workflow.compile(checkpointer=self.memory)
+        self.graph = self.flow.compile(checkpointer=self.memory)
 
     def get_graph(self):
         return self.graph
@@ -120,8 +133,6 @@ class workflow:
                 except Exception as e:
                     print(f"Error removing message: {e}")
                     raise
-
-
 
 # if __name__ == "__main__":
 #     g = workflow()

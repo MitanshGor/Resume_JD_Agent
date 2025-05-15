@@ -6,17 +6,22 @@ import requests
 import json
 sys.path.append(os.path.abspath(os.path.join(os.getcwd(), '..')))
 
+import os
+import requests
+from typing import TypedDict, Dict
+from dotenv import load_dotenv
+from langchain_core.tools import StructuredTool
+
+load_dotenv()
+
+
 class DiscordMessageTool:
-    """ This is the tool that will be used to send the message to the discord channel itself"""
+    """Tool for sending Discord messages about candidate DB events."""
+
     def __init__(self, webhook_url=None):
         self.webhook_url = webhook_url or os.getenv("DISCORD_WEBHOOK_URL")
-    
-    # Tool that is used to help insert the data into the database
-    def send_discord_notification(self, first_name: str, last_name: str,  resume: str) : 
-        """
-        This is the tool that will be used to send the message to the discord channel itself when new candidate is inserted into the database.
-        """
-        # This is the message that will be sent to the discord channel
+
+    def send_discord_notification(self, first_name: str, last_name: str, resume: str) -> Dict[str, str]:
         message = f"""
         :green_square:  New Candidate Inserted:
         -------------------
@@ -24,42 +29,9 @@ class DiscordMessageTool:
         Candidate Resume: {resume}
         -------------------
         """
-        try:
-            payload = {"content": message}
-            response = requests.post(self.webhook_url, json=payload, headers={'Content-Type': 'application/json'})
-            # response.raise_for_status()
-            print(response.status_code)
-            print(response.text)
-            return { "Response": "Candidate with description '{firstname}' (INSERT into DB) notified discord successfully!"}
-        except Exception as e:
-            print(f"Error: {str(e)}")
+        return self._send_to_discord(message, f"{first_name} (INSERT)")
 
-
-    def send_discord_notification_delete(self, first_name: str, last_name: str) : 
-        """
-        This is the tool that will be used to send the message to the discord channel itself when new candidate is deleted from the database.
-        """
-        # This is the message that will be sent to the discord chan nel
-        message = f"""
-        :red_square:  Candidate Deleted:
-        -------------------
-        Candidate Name: {first_name} {last_name}
-        -------------------
-        """
-        try:
-            payload = {"content": message}
-            response = requests.post(self.webhook_url, json=payload, headers={'Content-Type': 'application/json'})
-            # response.raise_for_status()
-            print(response.status_code)
-            print(response.text)
-            return { "Response": "Candidate with description '{firstname}' (Delete from DB) notified discord successfully!"}
-        except Exception as e:
-            print(f"Error: {str(e)}")
-
-    def send_discord_notification_Updated(self, first_name: str, last_name: str,  resume: str) : 
-        """
-        This is the tool that will be used to send the message to the discord channel itself when existing candidate is updated in the database.
-        """
+    def send_discord_notification_Updated(self, first_name: str, last_name: str, resume: str) -> Dict[str, str]:
         message = f"""
         :yellow_square:  Candidate Updated:
         -------------------
@@ -67,15 +39,27 @@ class DiscordMessageTool:
         Candidate Resume: {resume}
         -------------------
         """
+        return self._send_to_discord(message, f"{first_name} (UPDATE)")
+
+    def send_discord_notification_delete(self, first_name: str, last_name: str) -> Dict[str, str]:
+        message = f"""
+        :red_square:  Candidate Deleted:
+        -------------------
+        Candidate Name: {first_name} {last_name}
+        -------------------
+        """
+        return self._send_to_discord(message, f"{first_name} (DELETE)")
+
+    def _send_to_discord(self, message: str, action_label: str) -> Dict[str, str]:
         try:
             payload = {"content": message}
             response = requests.post(self.webhook_url, json=payload, headers={'Content-Type': 'application/json'})
-            # response.raise_for_status()
             print(response.status_code)
             print(response.text)
-            return { "Response": "Candidate with description '{firstname}' (update from DB) notified discord successfully!"}
+            return {"Response": f"Candidate {action_label} notified on Discord successfully!"}
         except Exception as e:
             print(f"Error: {str(e)}")
+            return {"Error": str(e)}
 
 
 # if __name__ == "__main__":

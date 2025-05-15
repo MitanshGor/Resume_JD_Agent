@@ -18,7 +18,7 @@ class CockroachDBAgent:
             print(f"Error: Unable to connect to the database: {e}")
     
     # Inserts new canidates onto the database itself
-    def insert_candidate(self,first_name, last_name, description):
+    def insert_candidate(self,first_name, last_name, query):
         """Insert a new candidate into the database"""
         try:
             self.cursor.execute(
@@ -26,7 +26,7 @@ class CockroachDBAgent:
                 INSERT INTO HRCandidates(description, first_name, last_name)
                 VALUES (%s, %s, %s)
                 """,
-                (description, first_name, last_name)
+                (query, first_name, last_name)
             )
             self.connection.commit()
             print(f"Candidate inserted successfully!")
